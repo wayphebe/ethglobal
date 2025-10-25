@@ -3,7 +3,9 @@ import type { Metadata } from "next"
 
 import { Analytics } from "@vercel/analytics/next"
 import { Web3Provider } from "@/lib/web3-context"
+import { Web3ErrorBoundary } from "@/components/web3-error-boundary"
 import { Navbar } from "@/components/navbar"
+import { ChromeExtensionWarning } from "@/components/chrome-extension-warning"
 import "./globals.css"
 
 import { Inter, Geist_Mono, Geist as V0_Font_Geist, Geist_Mono as V0_Font_Geist_Mono, Source_Serif_4 as V0_Font_Source_Serif_4 } from 'next/font/google'
@@ -29,10 +31,13 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={`font-sans antialiased`} suppressHydrationWarning={true}>
-        <Web3Provider>
-          <Navbar />
-          {children}
-        </Web3Provider>
+        <Web3ErrorBoundary>
+          <Web3Provider>
+            <ChromeExtensionWarning />
+            <Navbar />
+            {children}
+          </Web3Provider>
+        </Web3ErrorBoundary>
         <Analytics />
       </body>
     </html>

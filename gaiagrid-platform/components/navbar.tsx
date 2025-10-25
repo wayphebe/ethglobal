@@ -1,5 +1,6 @@
 import Link from "next/link"
 import { WalletConnectButton } from "@/components/wallet-connect-button"
+import { NetworkStatus } from "@/components/network-status"
 
 export function Navbar() {
   return (
@@ -21,7 +22,10 @@ export function Navbar() {
             </Link>
           </div>
         </div>
-        <WalletConnectButton />
+        <div className="flex items-center gap-4">
+          <NetworkStatus />
+          <WalletConnectButton />
+        </div>
       </div>
     </nav>
   )

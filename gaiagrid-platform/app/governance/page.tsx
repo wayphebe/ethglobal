@@ -285,14 +285,14 @@ export default function GovernancePage() {
                       <div className="flex items-center justify-between text-sm">
                         <span className="text-muted-foreground">For</span>
                         <span className="font-medium text-emerald-600">
-                          {proposal.votesFor.toLocaleString()} ({votePercentage.toFixed(1)}%)
+                          {proposal.votesFor.toLocaleString('en-US')} ({votePercentage.toFixed(1)}%)
                         </span>
                       </div>
                       <Progress value={votePercentage} className="h-2" />
                       <div className="flex items-center justify-between text-sm">
                         <span className="text-muted-foreground">Against</span>
                         <span className="font-medium text-red-600">
-                          {proposal.votesAgainst.toLocaleString()} ({(100 - votePercentage).toFixed(1)}%)
+                          {proposal.votesAgainst.toLocaleString('en-US')} ({(100 - votePercentage).toFixed(1)}%)
                         </span>
                       </div>
                     </div>
@@ -302,7 +302,7 @@ export default function GovernancePage() {
                       <div className="flex items-center justify-between text-sm">
                         <span className="text-muted-foreground">Quorum Progress</span>
                         <span className="font-medium">
-                          {proposal.totalVotes.toLocaleString()} / {proposal.quorum.toLocaleString()}
+                          {proposal.totalVotes.toLocaleString('en-US')} / {proposal.quorum.toLocaleString('en-US')}
                         </span>
                       </div>
                       <Progress value={quorumPercentage} className="h-2" />

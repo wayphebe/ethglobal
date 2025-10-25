@@ -3,6 +3,7 @@
 import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from "react"
 import { ethers } from 'ethers'
 import { supportedChains, networkConfig } from './contracts/config'
+import { setupGlobalErrorHandlers, isChromeExtensionError } from './error-handler'
 
 interface TokenBalance {
   address: string
@@ -67,30 +68,111 @@ export function Web3Provider({ children }: { children: ReactNode }) {
     }
   }, [])
 
+  const refreshBalances = useCallback(async () => {
+    if (!account || !chainId || !provider) return
+
+    try {
+      const balancesList: TokenBalance[] = []
+
+      // Check if provider is still connected to the same network
+      try {
+        const currentChainId = await provider.getNetwork().then(net => Number(net.chainId))
+        if (currentChainId !== chainId) {
+          console.warn(`Provider network mismatch: expected ${chainId}, got ${currentChainId}`)
+          // Update the provider to match the current network
+          if (typeof window !== "undefined" && window.ethereum) {
+            const newProvider = new ethers.BrowserProvider(window.ethereum)
+            setProvider(newProvider)
+          }
+          return
+        }
+      } catch (networkErr: any) {
+        if (isChromeExtensionError(networkErr)) {
+          console.warn('Chrome extension communication error during network check (non-critical):', networkErr.message)
+          return
+        }
+        throw networkErr
+      }
+
+      // Get native balance (ETH)
+      const nativeBalance = await provider.getBalance(account)
+      const nativeConfig = networkConfig[chainId as keyof typeof networkConfig]
+      
+      if (nativeConfig) {
+        balancesList.push({
+          address: ethers.ZeroAddress,
+          symbol: nativeConfig.nativeCurrency.symbol,
+          name: nativeConfig.nativeCurrency.name,
+          decimals: nativeConfig.nativeCurrency.decimals,
+          balance: nativeBalance.toString(),
+          balanceFormatted: ethers.formatEther(nativeBalance),
+          usdValue: 0 // Would need price feed integration
+        })
+      }
+
+      // TODO: Add token balances (GAIA, USDC, etc.)
+      // This would require contract instances and token contracts
+
+      setBalances(balancesList)
+    } catch (err: any) {
+      if (isChromeExtensionError(err)) {
+        console.warn('Chrome extension communication error (non-critical):', err.message)
+        return
+      }
+      console.error('Failed to refresh balances:', err)
+    }
+  }, [account, chainId, provider])
+
   useEffect(() => {
+    // Set up global error handlers for Chrome extension errors
+    const cleanupErrorHandlers = setupGlobalErrorHandlers()
+
     // Check if wallet is already connected
     checkConnection()
 
-    // Listen for account changes
+    // Listen for account changes with error handling
     if (typeof window !== "undefined" && window.ethereum) {
-      window.ethereum.on("accountsChanged", handleAccountsChanged)
-      window.ethereum.on("chainChanged", handleChainChanged)
+      try {
+        window.ethereum.on("accountsChanged", handleAccountsChanged)
+        window.ethereum.on("chainChanged", handleChainChanged)
+      } catch (err) {
+        if (isChromeExtensionError(err)) {
+          console.warn("Chrome extension communication error (non-critical):", err)
+        } else {
+          console.warn("Failed to set up wallet event listeners:", err)
+        }
+      }
     }
 
     return () => {
+      // Clean up error handlers
+      cleanupErrorHandlers()
+      
       if (typeof window !== "undefined" && window.ethereum) {
-        window.ethereum.removeListener("accountsChanged", handleAccountsChanged)
-        window.ethereum.removeListener("chainChanged", handleChainChanged)
+        try {
+          window.ethereum.removeListener("accountsChanged", handleAccountsChanged)
+          window.ethereum.removeListener("chainChanged", handleChainChanged)
+        } catch (err) {
+          if (isChromeExtensionError(err)) {
+            console.warn("Chrome extension communication error (non-critical):", err)
+          } else {
+            console.warn("Failed to remove wallet event listeners:", err)
+          }
+        }
       }
     }
   }, [])
 
-  // Load balances when account or chainId changes
+  // Load balances when account or chainId changes (with debounce)
   useEffect(() => {
-    if (account && chainId && provider) {
-      refreshBalances()
+    if (account && chainId && provider && refreshBalances) {
+      const timeoutId = setTimeout(() => {
+        refreshBalances()
+      }, 1000) // Wait 1 second after network change
+      
+      return () => clearTimeout(timeoutId)
     }
-  }, [account, chainId, provider])
+  }, [account, chainId, provider, refreshBalances])
 
   const checkConnection = async () => {
     if (typeof window !== "undefined" && window.ethereum) {
@@ -119,7 +201,11 @@ export function Web3Provider({ children }: { children: ReactNode }) {
           const detectedWalletType = detectWalletType()
           setWalletType(detectedWalletType)
         }
-      } catch (err) {
+      } catch (err: any) {
+        if (isChromeExtensionError(err)) {
+          console.warn('Chrome extension communication error (non-critical):', err.message)
+          return
+        }
         console.error("[v0] Error checking connection:", err)
       }
     }
@@ -148,20 +234,35 @@ export function Web3Provider({ children }: { children: ReactNode }) {
   }
 
   const handleChainChanged = (chainId: string) => {
-    const chainIdNum = Number.parseInt(chainId, 16)
-    
-    // Check if chain is supported
-    const supportedChainIds = [1, 11155111, 137, 42161, 421614] // Mainnet, Sepolia, Polygon, Arbitrum, Arbitrum Sepolia
-    if (!supportedChainIds.includes(chainIdNum)) {
-      console.warn(`Unsupported network (Chain ID: ${chainIdNum}). Please switch to a supported network.`)
-      setError(`Unsupported network (Chain ID: ${chainIdNum}). Please switch to Ethereum, Polygon, or Arbitrum.`)
-      return
+    try {
+      const chainIdNum = Number.parseInt(chainId, 16)
+      
+      // Check if chain is supported
+      const supportedChainIds = [1, 11155111, 137, 42161, 421614] // Mainnet, Sepolia, Polygon, Arbitrum, Arbitrum Sepolia
+      if (!supportedChainIds.includes(chainIdNum)) {
+        console.warn(`Unsupported network (Chain ID: ${chainIdNum}). Please switch to a supported network.`)
+        setError(`Unsupported network (Chain ID: ${chainIdNum}). Please switch to Ethereum, Polygon, or Arbitrum.`)
+        return
+      }
+      
+      setChainId(chainIdNum)
+      setError(null) // Clear any previous errors
+      
+      // Update provider for new network
+      if (typeof window !== "undefined" && window.ethereum) {
+        const newProvider = new ethers.BrowserProvider(window.ethereum)
+        setProvider(newProvider)
+      }
+      
+      // Save connection state
+      saveConnectionState(account, chainIdNum, walletType)
+    } catch (err: any) {
+      if (isChromeExtensionError(err)) {
+        console.warn('Chrome extension communication error during network change (non-critical):', err.message)
+        return
+      }
+      console.error('Error handling chain change:', err)
     }
-    
-    setChainId(chainIdNum)
-    setError(null) // Clear any previous errors
-    // Save connection state
-    saveConnectionState(account, chainIdNum, walletType)
   }
 
   const saveConnectionState = (account: string | null, chainId: number | null, walletType: string | null) => {
@@ -229,7 +330,12 @@ export function Web3Provider({ children }: { children: ReactNode }) {
       // Save connection state
       saveConnectionState(accounts[0], chainIdNum, detectedWalletType)
     } catch (err: any) {
-      setError(err.message || "Failed to connect wallet")
+      if (isChromeExtensionError(err)) {
+        console.warn('Chrome extension communication error (non-critical):', err.message)
+        setError("Please try connecting your wallet again")
+      } else {
+        setError(err.message || "Failed to connect wallet")
+      }
       console.error("[v0] Error connecting wallet:", err)
     } finally {
       setIsConnecting(false)
@@ -271,37 +377,6 @@ export function Web3Provider({ children }: { children: ReactNode }) {
       console.error("[v0] Error switching chain:", err)
     }
   }
-
-  const refreshBalances = useCallback(async () => {
-    if (!account || !chainId || !provider) return
-
-    try {
-      const balancesList: TokenBalance[] = []
-
-      // Get native balance (ETH)
-      const nativeBalance = await provider.getBalance(account)
-      const nativeConfig = networkConfig[chainId as keyof typeof networkConfig]
-      
-      if (nativeConfig) {
-        balancesList.push({
-          address: ethers.ZeroAddress,
-          symbol: nativeConfig.nativeCurrency.symbol,
-          name: nativeConfig.nativeCurrency.name,
-          decimals: nativeConfig.nativeCurrency.decimals,
-          balance: nativeBalance.toString(),
-          balanceFormatted: ethers.formatEther(nativeBalance),
-          usdValue: 0 // Would need price feed integration
-        })
-      }
-
-      // TODO: Add token balances (GAIA, USDC, etc.)
-      // This would require contract instances and token contracts
-
-      setBalances(balancesList)
-    } catch (err) {
-      console.error('Failed to refresh balances:', err)
-    }
-  }, [account, chainId, provider])
 
   const currentNetwork = chainId ? networkConfig[chainId as keyof typeof networkConfig]?.name || 'Unknown' : null
   const isSupportedNetwork = chainId ? supportedChains.some(chain => chain.id === chainId) : false

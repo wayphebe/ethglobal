@@ -7,87 +7,175 @@ import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { MapPin, Zap, Users, Star, Search, Filter } from "lucide-react"
+import { MapPin, Zap, Users, Star, Search, Filter, HelpCircle, BookOpen } from "lucide-react"
+import { EnergyNode, BookingRequest } from "@/lib/types/booking"
+import { EnergyNodeCard } from "@/components/energy-node-card"
+import { BookingForm } from "@/components/booking-form"
+import { UserEducationModal } from "@/components/user-education"
 
-// Mock data for energy nodes
-const MOCK_NODES = [
+// Enhanced mock data for energy nodes with detailed energy capacity information
+const MOCK_NODES: EnergyNode[] = [
   {
-    id: 1,
+    id: "bali-solar",
     name: "Bali Solar Hub",
     location: "Ubud, Bali, Indonesia",
     coordinates: { lat: -8.5069, lng: 115.2625 },
-    capacity: "25 kW",
-    available: true,
-    price: "0.05 ETH/day",
+    energyCapacity: {
+      totalCapacity: 25,
+      availableCapacity: 18,
+      currentLoad: 7,
+      efficiency: 95,
+      description: "High-efficiency solar panels with battery storage",
+      energyType: "solar",
+      status: "online"
+    },
+    pricing: {
+      1: { dailyRate: "0.05", fiatEquivalent: { usd: 150, eur: 127.5 }, currency: "ETH", gasEstimate: "0.005" },
+      137: { dailyRate: "50", fiatEquivalent: { usd: 150, eur: 127.5 }, currency: "MATIC", gasEstimate: "0.00001" },
+      42161: { dailyRate: "0.05", fiatEquivalent: { usd: 150, eur: 127.5 }, currency: "ETH", gasEstimate: "0.0005" }
+    },
+    isAvailable: true,
     rating: 4.8,
-    amenities: ["High-speed WiFi", "Co-working Space", "Solar Powered"],
+    amenities: ["High-speed WiFi", "Co-working Space", "Solar Powered", "Battery Storage"],
     image: "/bali-solar-workspace.jpg",
     operator: "0x1234...5678",
+    carbonOffset: 2.1,
+    uptime: 99.2
   },
   {
-    id: 2,
+    id: "costa-rica-eco",
     name: "Costa Rica Eco Lodge",
     location: "Monteverde, Costa Rica",
     coordinates: { lat: 10.3009, lng: -84.8249 },
-    capacity: "40 kW",
-    available: true,
-    price: "0.08 ETH/day",
+    energyCapacity: {
+      totalCapacity: 40,
+      availableCapacity: 25,
+      currentLoad: 15,
+      efficiency: 88,
+      description: "Hydroelectric power with grid backup",
+      energyType: "hydroelectric",
+      status: "online"
+    },
+    pricing: {
+      1: { dailyRate: "0.08", fiatEquivalent: { usd: 200, eur: 170 }, currency: "ETH", gasEstimate: "0.005" },
+      137: { dailyRate: "80", fiatEquivalent: { usd: 200, eur: 170 }, currency: "MATIC", gasEstimate: "0.00001" },
+      42161: { dailyRate: "0.08", fiatEquivalent: { usd: 200, eur: 170 }, currency: "ETH", gasEstimate: "0.0005" }
+    },
+    isAvailable: true,
     rating: 4.9,
-    amenities: ["Private Rooms", "Restaurant", "Hydroelectric Power"],
+    amenities: ["Private Rooms", "Restaurant", "Hydroelectric Power", "Nature Trails"],
     image: "/costa-rica-eco-lodge.jpg",
     operator: "0xabcd...efgh",
+    carbonOffset: 3.2,
+    uptime: 98.8
   },
   {
-    id: 3,
+    id: "portugal-wind",
     name: "Portugal Wind Station",
     location: "Lagos, Portugal",
     coordinates: { lat: 37.1028, lng: -8.6731 },
-    capacity: "60 kW",
-    available: false,
-    price: "0.12 ETH/day",
+    energyCapacity: {
+      totalCapacity: 60,
+      availableCapacity: 0,
+      currentLoad: 60,
+      efficiency: 92,
+      description: "Wind turbines with smart grid integration",
+      energyType: "wind",
+      status: "online"
+    },
+    pricing: {
+      1: { dailyRate: "0.12", fiatEquivalent: { usd: 180, eur: 153 }, currency: "ETH", gasEstimate: "0.005" },
+      137: { dailyRate: "120", fiatEquivalent: { usd: 180, eur: 153 }, currency: "MATIC", gasEstimate: "0.00001" },
+      42161: { dailyRate: "0.12", fiatEquivalent: { usd: 180, eur: 153 }, currency: "ETH", gasEstimate: "0.0005" }
+    },
+    isAvailable: false,
     rating: 4.7,
-    amenities: ["Ocean View", "Gym", "Wind Powered"],
+    amenities: ["Ocean View", "Gym", "Wind Powered", "Smart Grid"],
     image: "/portugal-wind-station.jpg",
     operator: "0x9876...5432",
+    carbonOffset: 4.5,
+    uptime: 97.5
   },
   {
-    id: 4,
+    id: "thailand-beach",
     name: "Thailand Beach Node",
     location: "Koh Phangan, Thailand",
     coordinates: { lat: 9.7384, lng: 100.0083 },
-    capacity: "30 kW",
-    available: true,
-    price: "0.06 ETH/day",
+    energyCapacity: {
+      totalCapacity: 30,
+      availableCapacity: 22,
+      currentLoad: 8,
+      efficiency: 90,
+      description: "Solar panels with backup generator",
+      energyType: "solar",
+      status: "online"
+    },
+    pricing: {
+      1: { dailyRate: "0.06", fiatEquivalent: { usd: 120, eur: 102 }, currency: "ETH", gasEstimate: "0.005" },
+      137: { dailyRate: "60", fiatEquivalent: { usd: 120, eur: 102 }, currency: "MATIC", gasEstimate: "0.00001" },
+      42161: { dailyRate: "0.06", fiatEquivalent: { usd: 120, eur: 102 }, currency: "ETH", gasEstimate: "0.0005" }
+    },
+    isAvailable: true,
     rating: 4.6,
-    amenities: ["Beach Access", "Yoga Studio", "Solar Powered"],
+    amenities: ["Beach Access", "Yoga Studio", "Solar Powered", "Backup Generator"],
     image: "/thailand-beach-workspace.jpg",
     operator: "0x5555...6666",
+    carbonOffset: 1.8,
+    uptime: 96.3
   },
   {
-    id: 5,
+    id: "iceland-geothermal",
     name: "Iceland Geothermal Base",
     location: "Reykjavik, Iceland",
     coordinates: { lat: 64.1466, lng: -21.9426 },
-    capacity: "100 kW",
-    available: true,
-    price: "0.15 ETH/day",
+    energyCapacity: {
+      totalCapacity: 100,
+      availableCapacity: 60,
+      currentLoad: 40,
+      efficiency: 98,
+      description: "Geothermal power plant with district heating",
+      energyType: "geothermal",
+      status: "online"
+    },
+    pricing: {
+      1: { dailyRate: "0.15", fiatEquivalent: { usd: 250, eur: 212.5 }, currency: "ETH", gasEstimate: "0.005" },
+      137: { dailyRate: "150", fiatEquivalent: { usd: 250, eur: 212.5 }, currency: "MATIC", gasEstimate: "0.00001" },
+      42161: { dailyRate: "0.15", fiatEquivalent: { usd: 250, eur: 212.5 }, currency: "ETH", gasEstimate: "0.0005" }
+    },
+    isAvailable: true,
     rating: 5.0,
-    amenities: ["Hot Springs", "Conference Room", "Geothermal Power"],
+    amenities: ["Hot Springs", "Conference Room", "Geothermal Power", "District Heating"],
     image: "/iceland-geothermal-workspace.jpg",
     operator: "0x7777...8888",
+    carbonOffset: 6.8,
+    uptime: 99.9
   },
   {
-    id: 6,
+    id: "morocco-desert",
     name: "Morocco Desert Camp",
     location: "Merzouga, Morocco",
     coordinates: { lat: 31.0801, lng: -4.0133 },
-    capacity: "20 kW",
-    available: true,
-    price: "0.04 ETH/day",
+    energyCapacity: {
+      totalCapacity: 20,
+      availableCapacity: 15,
+      currentLoad: 5,
+      efficiency: 85,
+      description: "Solar panels with battery storage for desert conditions",
+      energyType: "solar",
+      status: "online"
+    },
+    pricing: {
+      1: { dailyRate: "0.04", fiatEquivalent: { usd: 100, eur: 85 }, currency: "ETH", gasEstimate: "0.005" },
+      137: { dailyRate: "40", fiatEquivalent: { usd: 100, eur: 85 }, currency: "MATIC", gasEstimate: "0.00001" },
+      42161: { dailyRate: "0.04", fiatEquivalent: { usd: 100, eur: 85 }, currency: "ETH", gasEstimate: "0.0005" }
+    },
+    isAvailable: true,
     rating: 4.5,
-    amenities: ["Desert Views", "Traditional Meals", "Solar Powered"],
+    amenities: ["Desert Views", "Traditional Meals", "Solar Powered", "Battery Storage"],
     image: "/morocco-desert-camp.jpg",
     operator: "0x3333...4444",
+    carbonOffset: 1.2,
+    uptime: 94.7
   },
 ]
 
@@ -95,28 +183,69 @@ export default function NodesPage() {
   const [searchQuery, setSearchQuery] = useState("")
   const [filterAvailable, setFilterAvailable] = useState<string>("all")
   const [sortBy, setSortBy] = useState<string>("rating")
+  const [selectedNode, setSelectedNode] = useState<EnergyNode | null>(null)
+  const [showBookingForm, setShowBookingForm] = useState(false)
+  const [showEducation, setShowEducation] = useState(false)
+  const [bookings, setBookings] = useState<BookingRequest[]>([])
 
   const filteredNodes = MOCK_NODES.filter((node) => {
     const matchesSearch =
       node.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       node.location.toLowerCase().includes(searchQuery.toLowerCase())
-    const matchesAvailability = filterAvailable === "all" || (filterAvailable === "available" && node.available)
+    const matchesAvailability = filterAvailable === "all" || (filterAvailable === "available" && node.isAvailable)
     return matchesSearch && matchesAvailability
   }).sort((a, b) => {
     if (sortBy === "rating") return b.rating - a.rating
-    if (sortBy === "price") return Number.parseFloat(a.price) - Number.parseFloat(b.price)
+    if (sortBy === "price") return Number.parseFloat(a.pricing[1]?.dailyRate || "0") - Number.parseFloat(b.pricing[1]?.dailyRate || "0")
     return 0
   })
+
+  const handleBookNode = (nodeId: string) => {
+    const node = MOCK_NODES.find(n => n.id === nodeId)
+    if (node) {
+      setSelectedNode(node)
+      setShowBookingForm(true)
+    }
+  }
+
+  const handleBookingSuccess = (booking: BookingRequest) => {
+    setBookings(prev => [...prev, booking])
+    setShowBookingForm(false)
+    setSelectedNode(null)
+  }
 
   return (
     <div className="min-h-screen bg-background">
       <div className="mx-auto max-w-7xl px-6 py-12 lg:px-8">
         {/* Header */}
         <div className="mb-8">
-          <h1 className="text-4xl font-bold tracking-tight text-foreground">Discover Energy Nodes</h1>
-          <p className="mt-2 text-lg text-muted-foreground">
-            Find sustainable workspaces and living spaces powered by renewable energy
-          </p>
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-4xl font-bold tracking-tight text-foreground">Discover Energy Nodes</h1>
+              <p className="mt-2 text-lg text-muted-foreground">
+                Find sustainable workspaces and living spaces powered by renewable energy
+              </p>
+            </div>
+            <div className="flex gap-2">
+              <Button 
+                variant="outline" 
+                onClick={() => setShowEducation(true)}
+                className="flex items-center gap-2"
+              >
+                <HelpCircle className="h-4 w-4" />
+                Learn More
+              </Button>
+              {bookings.length > 0 && (
+                <Button 
+                  variant="outline" 
+                  className="flex items-center gap-2"
+                >
+                  <BookOpen className="h-4 w-4" />
+                  My Bookings ({bookings.length})
+                </Button>
+              )}
+            </div>
+          </div>
         </div>
 
         {/* Search and Filters */}
@@ -161,64 +290,12 @@ export default function NodesPage() {
           <TabsContent value="list" className="space-y-6">
             <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
               {filteredNodes.map((node) => (
-                <Card key={node.id} className="overflow-hidden">
-                  <div className="relative h-48 w-full overflow-hidden bg-muted">
-                    <img
-                      src={node.image || "/placeholder.svg"}
-                      alt={node.name}
-                      className="h-full w-full object-cover"
-                    />
-                    {node.available ? (
-                      <Badge className="absolute right-2 top-2 bg-emerald-600">Available</Badge>
-                    ) : (
-                      <Badge variant="secondary" className="absolute right-2 top-2">
-                        Booked
-                      </Badge>
-                    )}
-                  </div>
-                  <CardHeader>
-                    <CardTitle className="text-xl">{node.name}</CardTitle>
-                    <CardDescription className="flex items-center gap-1">
-                      <MapPin className="h-4 w-4" />
-                      {node.location}
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div className="flex items-center justify-between text-sm">
-                      <div className="flex items-center gap-1">
-                        <Zap className="h-4 w-4 text-emerald-600" />
-                        <span className="font-medium">{node.capacity}</span>
-                      </div>
-                      <div className="flex items-center gap-1">
-                        <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
-                        <span className="font-medium">{node.rating}</span>
-                      </div>
-                    </div>
-
-                    <div className="flex flex-wrap gap-2">
-                      {node.amenities.slice(0, 2).map((amenity) => (
-                        <Badge key={amenity} variant="outline" className="text-xs">
-                          {amenity}
-                        </Badge>
-                      ))}
-                      {node.amenities.length > 2 && (
-                        <Badge variant="outline" className="text-xs">
-                          +{node.amenities.length - 2}
-                        </Badge>
-                      )}
-                    </div>
-
-                    <div className="flex items-center justify-between border-t border-border pt-4">
-                      <div>
-                        <div className="text-2xl font-bold text-foreground">{node.price}</div>
-                        <div className="text-xs text-muted-foreground">per day</div>
-                      </div>
-                      <Button disabled={!node.available} className="bg-emerald-600 hover:bg-emerald-700">
-                        {node.available ? "Book Now" : "Unavailable"}
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
+                <EnergyNodeCard
+                  key={node.id}
+                  node={node}
+                  onBook={handleBookNode}
+                  showDemoMode={true}
+                />
               ))}
             </div>
 
@@ -266,7 +343,7 @@ export default function NodesPage() {
         </Tabs>
 
         {/* Stats */}
-        <div className="mt-12 grid gap-6 sm:grid-cols-3">
+        <div className="mt-12 grid gap-6 sm:grid-cols-4">
           <Card>
             <CardContent className="flex items-center gap-4 p-6">
               <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-emerald-100 dark:bg-emerald-900">
@@ -286,7 +363,7 @@ export default function NodesPage() {
               </div>
               <div>
                 <div className="text-2xl font-bold text-foreground">
-                  {MOCK_NODES.reduce((sum, node) => sum + Number.parseInt(node.capacity), 0)} kW
+                  {MOCK_NODES.reduce((sum, node) => sum + node.energyCapacity.totalCapacity, 0)} kW
                 </div>
                 <div className="text-sm text-muted-foreground">Total Capacity</div>
               </div>
@@ -299,12 +376,42 @@ export default function NodesPage() {
                 <Users className="h-6 w-6 text-violet-600 dark:text-violet-400" />
               </div>
               <div>
-                <div className="text-2xl font-bold text-foreground">{MOCK_NODES.filter((n) => n.available).length}</div>
+                <div className="text-2xl font-bold text-foreground">{MOCK_NODES.filter((n) => n.isAvailable).length}</div>
                 <div className="text-sm text-muted-foreground">Available Now</div>
               </div>
             </CardContent>
           </Card>
+
+          <Card>
+            <CardContent className="flex items-center gap-4 p-6">
+              <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-orange-100 dark:bg-orange-900">
+                <BookOpen className="h-6 w-6 text-orange-600 dark:text-orange-400" />
+              </div>
+              <div>
+                <div className="text-2xl font-bold text-foreground">{bookings.length}</div>
+                <div className="text-sm text-muted-foreground">Your Bookings</div>
+              </div>
+            </CardContent>
+          </Card>
         </div>
+
+        {/* Booking Form Modal */}
+        <BookingForm
+          node={selectedNode}
+          isOpen={showBookingForm}
+          onClose={() => {
+            setShowBookingForm(false)
+            setSelectedNode(null)
+          }}
+          onBookingSuccess={handleBookingSuccess}
+          showDemoMode={true}
+        />
+
+        {/* User Education Modal */}
+        <UserEducationModal
+          isOpen={showEducation}
+          onClose={() => setShowEducation(false)}
+        />
       </div>
     </div>
   )

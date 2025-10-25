@@ -538,7 +538,7 @@ export default function DashboardPage() {
                             {tx.nodeAddress ? `${tx.nodeAddress.slice(0, 6)}...${tx.nodeAddress.slice(-4)}` : 'Unknown'}
                           </TableCell>
                           <TableCell className="text-muted-foreground">
-                            {new Date(tx.createdAt * 1000).toLocaleDateString()}
+                            {new Date(tx.createdAt * 1000).toLocaleDateString('en-US')}
                           </TableCell>
                           <TableCell>
                             <Badge variant={tx.isCompleted ? "default" : "secondary"}>
