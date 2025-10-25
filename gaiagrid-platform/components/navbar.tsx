@@ -17,6 +17,9 @@ export function Navbar() {
             <Link href="/dashboard" className="text-sm text-muted-foreground hover:text-foreground">
               Dashboard
             </Link>
+            <Link href="/marketplace" className="text-sm text-muted-foreground hover:text-foreground">
+              Marketplace
+            </Link>
             <Link href="/governance" className="text-sm text-muted-foreground hover:text-foreground">
               Governance
             </Link>

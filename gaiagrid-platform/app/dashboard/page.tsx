@@ -17,6 +17,11 @@ import { useRWANFT } from "@/lib/contracts/hooks/useRWANFT"
 import { useNodeManager } from "@/lib/contracts/hooks/useNodeManager"
 import { useEnergyTrading } from "@/lib/contracts/hooks/useEnergyTrading"
 import { TransactionManager, TransactionType } from "@/lib/contracts/transactions"
+import { DeviceEnergyMonitor } from "@/components/device-energy-monitor"
+import { EnergyOptimizationPanel } from "@/components/energy-optimization-panel"
+import { EarningsTracker } from "@/components/earnings-tracker"
+import { IoTDataSimulator } from "@/lib/iot-data-simulator"
+import { MOCK_DEVICES, UserDevice, IoTDataPoint, OptimizationSuggestion, EnergyUsage } from "@/lib/types/energy"
 
 // Mock data for energy consumption
 const energyData = [
@@ -109,6 +114,13 @@ export default function DashboardPage() {
   const [timeRange, setTimeRange] = useState<"24h" | "7d" | "30d">("24h")
   const [transactionManager, setTransactionManager] = useState<TransactionManager | null>(null)
   
+  // New state for IoT data and devices
+  const [devices, setDevices] = useState<UserDevice[]>(MOCK_DEVICES)
+  const [iotData, setIotData] = useState<IoTDataPoint[]>([])
+  const [optimizations, setOptimizations] = useState<OptimizationSuggestion[]>([])
+  const [selectedDevice, setSelectedDevice] = useState<string | null>(null)
+  const [iotSimulator] = useState(() => new IoTDataSimulator())
+  
   // Web3 context
   const { account, chainId, isSupportedNetwork, balances } = useWeb3()
   
@@ -119,6 +131,39 @@ export default function DashboardPage() {
       setTransactionManager(new TransactionManager(provider))
     }
   }, [])
+
+  // Initialize IoT simulation
+  useEffect(() => {
+    // Generate initial historical data
+    const historicalData = iotSimulator.generateHistoricalData(24)
+    setIotData(historicalData)
+
+    // Start real-time simulation
+    iotSimulator.startSimulation(devices, (newData) => {
+      setIotData(prev => [...prev.slice(-100), ...newData])
+      
+      // Update device consumption based on new data
+      setDevices(prev => prev.map(device => {
+        const deviceData = newData.find(d => d.deviceId === device.id)
+        if (deviceData) {
+          return {
+            ...device,
+            currentConsumption: deviceData.power,
+            lastUpdate: new Date(deviceData.timestamp)
+          }
+        }
+        return device
+      }))
+    })
+
+    // Analyze patterns and generate optimizations
+    const suggestions = iotSimulator.analyzeUsagePattern(historicalData)
+    setOptimizations(suggestions)
+
+    return () => {
+      iotSimulator.stopSimulation()
+    }
+  }, [devices, iotSimulator])
   
   // Contract hooks
   const { 
@@ -167,6 +212,32 @@ export default function DashboardPage() {
   // Get primary balance (ETH)
   const primaryBalance = balances.find(b => b.symbol === 'ETH') || balances[0]
   const ethBalance = primaryBalance ? parseFloat(primaryBalance.balanceFormatted) : 0
+
+  // Calculate current energy usage
+  const currentUsage: EnergyUsage = {
+    totalConsumption: devices.reduce((sum, device) => sum + device.currentConsumption, 0),
+    totalGeneration: devices
+      .filter(d => d.type === 'solar_panel')
+      .reduce((sum, device) => sum + device.currentConsumption, 0),
+    netUsage: 0, // Will be calculated
+    efficiency: 0.85, // Default efficiency
+    peakConsumption: Math.max(...devices.map(d => d.currentConsumption)),
+    peakGeneration: Math.max(...devices.filter(d => d.type === 'solar_panel').map(d => d.currentConsumption)),
+    devices
+  }
+  currentUsage.netUsage = currentUsage.totalConsumption - currentUsage.totalGeneration
+  currentUsage.efficiency = currentUsage.totalGeneration / Math.max(currentUsage.totalConsumption, 1)
+
+  // Handler functions
+  const handleDeviceSelect = (deviceId: string) => {
+    setSelectedDevice(deviceId)
+  }
+
+  const handleApplySuggestion = (suggestionId: string) => {
+    console.log('Applying suggestion:', suggestionId)
+    // In a real implementation, this would apply the optimization
+    // For now, just log it
+  }
   
   // Mock data for charts (in real implementation, this would come from IoT data)
   const energyData = [
@@ -415,10 +486,27 @@ export default function DashboardPage() {
           </Card>
         </div>
 
+        {/* Device Energy Monitor and Optimization */}
+        <div className="mb-8 grid gap-6 lg:grid-cols-2">
+          <DeviceEnergyMonitor
+            devices={devices}
+            realTimeData={iotData}
+            onDeviceSelect={handleDeviceSelect}
+            showOptimizationTips={true}
+          />
+          <EnergyOptimizationPanel
+            currentUsage={currentUsage}
+            suggestions={optimizations}
+            onApplySuggestion={handleApplySuggestion}
+            devices={devices}
+          />
+        </div>
+
         {/* Tabs for Assets and Transactions */}
         <Tabs defaultValue="assets" className="w-full">
           <TabsList>
             <TabsTrigger value="assets">My Energy Assets</TabsTrigger>
+            <TabsTrigger value="earnings">Earnings Tracker</TabsTrigger>
             <TabsTrigger value="transactions">Recent Transactions</TabsTrigger>
           </TabsList>
 
@@ -439,9 +527,14 @@ export default function DashboardPage() {
                     <Sun className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
                     <h3 className="text-lg font-semibold mb-2">No Energy Assets</h3>
                     <p className="text-muted-foreground mb-4">
-                      You don't have any energy asset NFTs yet. Start by minting your first asset!
+                      You don't have any energy asset NFTs yet. Browse the marketplace to purchase your first asset!
                     </p>
-                    <Button>Mint Energy Asset</Button>
+                    <div className="flex gap-2">
+                      <Button asChild>
+                        <a href="/marketplace">Browse Marketplace</a>
+                      </Button>
+                      <Button variant="outline">Mint Energy Asset</Button>
+                    </div>
                   </div>
                 ) : (
                   <div className="space-y-4">
@@ -496,6 +589,17 @@ export default function DashboardPage() {
                 )}
               </CardContent>
             </Card>
+          </TabsContent>
+
+          <TabsContent value="earnings" className="mt-6">
+            <EarningsTracker
+              userAssets={userAssets}
+              earningsHistory={[]}
+              onRefresh={() => {
+                // In a real implementation, this would refresh earnings data
+                console.log('Refreshing earnings data...')
+              }}
+            />
           </TabsContent>
 
           <TabsContent value="transactions" className="mt-6">
