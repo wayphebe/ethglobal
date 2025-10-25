@@ -135,21 +135,34 @@ export class IoTDataSimulator {
     for (let i = hours * 4; i >= 0; i--) {
       const timestamp = now - (i * intervalMs)
       const hour = new Date(timestamp).getHours()
+      const minute = new Date(timestamp).getMinutes()
       
-      // Generate solar data
+      // Generate solar data with realistic patterns
       const solarIntensity = this.calculateSolarIntensity(hour)
+      const solarVariation = 0.8 + Math.random() * 0.4 // Add some variation
       data.push({
         deviceId: 'solar-panel-001',
         timestamp,
         dataType: 'generation',
         energyType: 'solar',
-        value: solarIntensity * 0.25,
-        power: solarIntensity,
+        value: solarIntensity * 0.25 * solarVariation,
+        power: solarIntensity * solarVariation,
         quality: 'good'
       })
 
-      // Generate AI render data (high in evening)
-      const aiUsage = hour >= 20 || hour <= 2 ? 2.5 : 0.5
+      // Generate AI render data with realistic patterns
+      let aiUsage = 0.5 // Base usage
+      if (hour >= 20 || hour <= 2) {
+        // High usage during night hours
+        aiUsage = 2.5 + Math.random() * 1.0
+      } else if (hour >= 9 && hour <= 17) {
+        // Medium usage during work hours
+        aiUsage = 1.5 + Math.random() * 0.8
+      } else {
+        // Low usage during other hours
+        aiUsage = 0.3 + Math.random() * 0.4
+      }
+      
       data.push({
         deviceId: 'ai-render-001',
         timestamp,
@@ -160,8 +173,22 @@ export class IoTDataSimulator {
         quality: 'good'
       })
 
-      // Generate general consumption
-      const generalUsage = 0.8 + Math.random() * 0.4
+      // Generate general consumption with daily patterns
+      let generalUsage = 0.8
+      if (hour >= 6 && hour <= 9) {
+        // Morning peak
+        generalUsage = 1.2 + Math.random() * 0.6
+      } else if (hour >= 18 && hour <= 22) {
+        // Evening peak
+        generalUsage = 1.5 + Math.random() * 0.8
+      } else if (hour >= 22 || hour <= 6) {
+        // Night low usage
+        generalUsage = 0.3 + Math.random() * 0.3
+      } else {
+        // Daytime moderate usage
+        generalUsage = 0.8 + Math.random() * 0.4
+      }
+      
       data.push({
         deviceId: 'general-001',
         timestamp,
@@ -171,9 +198,38 @@ export class IoTDataSimulator {
         power: generalUsage,
         quality: 'good'
       })
+
+      // Generate battery storage data
+      const batteryLevel = this.calculateBatteryLevel(hour, solarIntensity, aiUsage + generalUsage)
+      data.push({
+        deviceId: 'battery-001',
+        timestamp,
+        dataType: 'storage',
+        energyType: 'battery',
+        value: batteryLevel * 0.25,
+        power: batteryLevel,
+        quality: 'good'
+      })
     }
 
     return data
+  }
+
+  /**
+   * Calculate battery level based on solar generation and consumption
+   */
+  private calculateBatteryLevel(hour: number, solarGeneration: number, totalConsumption: number): number {
+    // Battery charges during solar peak hours, discharges during high consumption
+    if (hour >= 10 && hour <= 15 && solarGeneration > totalConsumption) {
+      // Charging from excess solar
+      return -(solarGeneration - totalConsumption) * 0.8
+    } else if (hour >= 18 || hour <= 8) {
+      // Discharging during high consumption periods
+      return Math.min(totalConsumption * 0.6, 2.0)
+    } else {
+      // Neutral state
+      return 0
+    }
   }
 
   /**

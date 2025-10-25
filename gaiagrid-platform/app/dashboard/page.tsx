@@ -239,8 +239,58 @@ export default function DashboardPage() {
     // For now, just log it
   }
   
-  // Mock data for charts (in real implementation, this would come from IoT data)
-  const energyData = [
+  // Process IoT data for charts based on time range
+  const processChartData = (iotData: IoTDataPoint[], range: string) => {
+    const groupedData: Record<string, { consumption: number; generation: number }> = {}
+    
+    iotData.forEach(point => {
+      const date = new Date(point.timestamp)
+      let timeKey: string
+      
+      if (range === '24h') {
+        // Group by hour
+        const hour = date.getHours()
+        timeKey = `${hour.toString().padStart(2, '0')}:00`
+      } else if (range === '7d') {
+        // Group by day
+        const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+        timeKey = dayNames[date.getDay()]
+      } else {
+        // Group by week
+        const weekNumber = Math.ceil(date.getDate() / 7)
+        timeKey = `Week ${weekNumber}`
+      }
+      
+      if (!groupedData[timeKey]) {
+        groupedData[timeKey] = { consumption: 0, generation: 0 }
+      }
+      
+      if (point.dataType === 'consumption') {
+        groupedData[timeKey].consumption += point.power
+      } else if (point.dataType === 'generation') {
+        groupedData[timeKey].generation += point.power
+      }
+    })
+    
+    // Convert to array and sort by time
+    return Object.entries(groupedData)
+      .map(([time, data]) => ({
+        time,
+        consumption: Math.round(data.consumption * 10) / 10,
+        generation: Math.round(data.generation * 10) / 10
+      }))
+      .sort((a, b) => {
+        if (range === '24h') return a.time.localeCompare(b.time)
+        if (range === '7d') {
+          const dayOrder = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+          return dayOrder.indexOf(a.time) - dayOrder.indexOf(b.time)
+        }
+        return a.time.localeCompare(b.time)
+      })
+  }
+
+  // Use real IoT data for charts, fallback to mock data if empty
+  const energyData = iotData.length > 0 ? processChartData(iotData, timeRange) : [
     { time: "00:00", consumption: 2.4, generation: 0 },
     { time: "03:00", consumption: 1.8, generation: 0 },
     { time: "06:00", consumption: 3.2, generation: 1.5 },
@@ -413,42 +463,84 @@ export default function DashboardPage() {
         <div className="mb-8 grid gap-6 lg:grid-cols-2">
           <Card>
             <CardHeader>
-              <CardTitle>Energy Flow (24h)</CardTitle>
-              <CardDescription>Real-time consumption vs generation</CardDescription>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle>Energy Flow ({timeRange})</CardTitle>
+                  <CardDescription>Real-time consumption vs generation</CardDescription>
+                </div>
+                <div className="flex gap-2">
+                  {(['24h', '7d', '30d'] as const).map((range) => (
+                    <Button
+                      key={range}
+                      variant={timeRange === range ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => setTimeRange(range)}
+                    >
+                      {range}
+                    </Button>
+                  ))}
+                </div>
+              </div>
             </CardHeader>
             <CardContent>
               <ChartContainer
                 config={{
                   consumption: {
-                    label: "Consumption",
-                    color: "hsl(var(--chart-1))",
+                    label: "Energy Consumption",
+                    color: "#ef4444", // Red for consumption
                   },
                   generation: {
-                    label: "Generation",
-                    color: "hsl(var(--chart-2))",
+                    label: "Energy Generation", 
+                    color: "#22c55e", // Green for generation
                   },
                 }}
                 className="h-[300px]"
               >
                 <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={energyData}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="time" />
-                    <YAxis />
-                    <ChartTooltip content={<ChartTooltipContent />} />
-                    <Legend />
+                  <LineChart data={energyData} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                    <XAxis 
+                      dataKey="time" 
+                      tick={{ fontSize: 12 }}
+                      tickLine={{ stroke: '#6b7280' }}
+                      axisLine={{ stroke: '#6b7280' }}
+                    />
+                    <YAxis 
+                      tick={{ fontSize: 12 }}
+                      tickLine={{ stroke: '#6b7280' }}
+                      axisLine={{ stroke: '#6b7280' }}
+                      label={{ value: 'Power (kW)', angle: -90, position: 'insideLeft' }}
+                    />
+                    <ChartTooltip 
+                      content={<ChartTooltipContent />}
+                      labelStyle={{ color: '#374151' }}
+                      contentStyle={{ 
+                        backgroundColor: '#ffffff', 
+                        border: '1px solid #e5e7eb',
+                        borderRadius: '8px',
+                        boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
+                      }}
+                    />
+                    <Legend 
+                      wrapperStyle={{ paddingTop: '20px' }}
+                      iconType="line"
+                    />
                     <Line
                       type="monotone"
                       dataKey="consumption"
-                      stroke="var(--color-consumption)"
-                      strokeWidth={2}
+                      stroke="#ef4444"
+                      strokeWidth={3}
+                      dot={{ fill: '#ef4444', strokeWidth: 2, r: 4 }}
+                      activeDot={{ r: 6, stroke: '#ef4444', strokeWidth: 2 }}
                       name="Consumption (kW)"
                     />
                     <Line
                       type="monotone"
                       dataKey="generation"
-                      stroke="var(--color-generation)"
-                      strokeWidth={2}
+                      stroke="#22c55e"
+                      strokeWidth={3}
+                      dot={{ fill: '#22c55e', strokeWidth: 2, r: 4 }}
+                      activeDot={{ r: 6, stroke: '#22c55e', strokeWidth: 2 }}
                       name="Generation (kW)"
                     />
                   </LineChart>
