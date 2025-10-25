@@ -29,7 +29,7 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning={true}>
       <body className={`font-sans antialiased`} suppressHydrationWarning={true}>
         <Web3ErrorBoundary>
           <Web3Provider>

@@ -65,6 +65,13 @@ export function useEnergyTrading() {
     try {
       const provider = new ethers.BrowserProvider(window.ethereum)
       const contractAddress = getContractAddress(chainId, 'EnergyTrading')
+      
+      // Check if contract is deployed (not zero address)
+      if (contractAddress === '0x0000000000000000000000000000000000000000') {
+        console.warn('EnergyTrading contract not deployed on this network')
+        return null
+      }
+      
       return new ethers.Contract(contractAddress, EnergyTradingABI, provider)
     } catch (err) {
       console.error('Failed to get contract:', err)
@@ -80,6 +87,13 @@ export function useEnergyTrading() {
       const provider = new ethers.BrowserProvider(window.ethereum)
       const signer = provider.getSigner()
       const contractAddress = getContractAddress(chainId, 'EnergyTrading')
+      
+      // Check if contract is deployed (not zero address)
+      if (contractAddress === '0x0000000000000000000000000000000000000000') {
+        console.warn('EnergyTrading contract not deployed on this network')
+        return null
+      }
+      
       return new ethers.Contract(contractAddress, EnergyTradingABI, signer)
     } catch (err) {
       console.error('Failed to get contract with signer:', err)
@@ -194,7 +208,16 @@ export function useEnergyTrading() {
   // Load stats
   const loadStats = useCallback(async () => {
     const contract = getContract()
-    if (!contract) return
+    if (!contract) {
+      // Set mock stats when contract is not available (demo mode)
+      setStats({
+        totalListings: 8,
+        totalTransactions: 24,
+        totalEnergyTraded: '1500000000000000000000', // 1500 kWh
+        totalVolume: '450000000000000000000' // 450 ETH
+      })
+      return
+    }
 
     try {
       const [totalListings, totalTransactions, totalEnergyTraded, totalVolume] = await contract.getStats()
@@ -206,6 +229,13 @@ export function useEnergyTrading() {
       })
     } catch (err) {
       console.error('Failed to load stats:', err)
+      // Set default stats on error
+      setStats({
+        totalListings: 0,
+        totalTransactions: 0,
+        totalEnergyTraded: '0',
+        totalVolume: '0'
+      })
     }
   }, [getContract])
 

@@ -79,6 +79,13 @@ export function useRWANFT() {
     try {
       const provider = new ethers.BrowserProvider(window.ethereum)
       const contractAddress = getContractAddress(chainId, 'RWAEnergyNFT')
+      
+      // Check if contract is deployed (not zero address)
+      if (contractAddress === '0x0000000000000000000000000000000000000000') {
+        console.warn('RWAEnergyNFT contract not deployed on this network')
+        return null
+      }
+      
       return new ethers.Contract(contractAddress, RWAEnergyNFTABI, provider)
     } catch (err) {
       console.error('Failed to get contract:', err)
@@ -94,6 +101,13 @@ export function useRWANFT() {
       const provider = new ethers.BrowserProvider(window.ethereum)
       const signer = provider.getSigner()
       const contractAddress = getContractAddress(chainId, 'RWAEnergyNFT')
+      
+      // Check if contract is deployed (not zero address)
+      if (contractAddress === '0x0000000000000000000000000000000000000000') {
+        console.warn('RWAEnergyNFT contract not deployed on this network')
+        return null
+      }
+      
       return new ethers.Contract(contractAddress, RWAEnergyNFTABI, signer)
     } catch (err) {
       console.error('Failed to get contract with signer:', err)
@@ -229,7 +243,16 @@ export function useRWANFT() {
   // Load stats
   const loadStats = useCallback(async () => {
     const contract = getContract()
-    if (!contract) return
+    if (!contract) {
+      // Set default stats when contract is not available
+      setStats({
+        totalAssets: 0,
+        verifiedAssets: 0,
+        totalCapacity: '0',
+        totalValue: '0'
+      })
+      return
+    }
 
     try {
       const [totalAssets, verifiedAssets, totalCapacity, totalValue] = await contract.getStats()
@@ -241,6 +264,13 @@ export function useRWANFT() {
       })
     } catch (err) {
       console.error('Failed to load stats:', err)
+      // Set default stats on error
+      setStats({
+        totalAssets: 0,
+        verifiedAssets: 0,
+        totalCapacity: '0',
+        totalValue: '0'
+      })
     }
   }, [getContract])
 

@@ -7,6 +7,9 @@ import {
   OptimizationSuggestion,
   TimeSlot
 } from './types/energy'
+import { carbonCalculator } from './carbon-calculator'
+import { badgeSystem } from './badge-system'
+import { CarbonOffset, Period } from './types/carbon'
 
 export class IoTDataSimulator {
   private isRunning: boolean = false
@@ -371,5 +374,191 @@ export class IoTDataSimulator {
       offPeakHour,
       weekendPattern: hourlyPattern.map(val => val * 0.7) // 30% less on weekends
     }
+  }
+
+  /**
+   * Calculate carbon offset from energy data
+   */
+  calculateCarbonOffset(energyData: IoTDataPoint[], userId: string, period: Period = 'monthly'): CarbonOffset {
+    return carbonCalculator.calculateOffsetForPeriod(energyData, period, userId)
+  }
+
+  /**
+   * Generate carbon offset data with badge simulation
+   */
+  generateCarbonOffsetData(userId: string, period: Period = 'monthly'): {
+    offset: CarbonOffset
+    badgesEarned: string[]
+    daoPointsEarned: number
+  } {
+    // Generate realistic energy data for the period
+    const hours = period === 'daily' ? 24 : 
+                 period === 'weekly' ? 168 : 
+                 period === 'monthly' ? 720 : 8760
+    
+    const energyData = this.generateHistoricalData(hours)
+    
+    // Calculate carbon offset
+    const offset = this.calculateCarbonOffset(energyData, userId, period)
+    
+    // Check for badge eligibility
+    const eligibleBadges = badgeSystem.checkBadgeEligibility(userId, offset)
+    const badgesEarned: string[] = []
+    let daoPointsEarned = 0
+    
+    // Award eligible badges
+    for (const badge of eligibleBadges) {
+      const awarded = badgeSystem.awardBadge(userId, badge.id)
+      if (awarded) {
+        badgesEarned.push(badge.name)
+        daoPointsEarned += badge.daoPoints
+      }
+    }
+    
+    return {
+      offset,
+      badgesEarned,
+      daoPointsEarned
+    }
+  }
+
+  /**
+   * Generate carbon offset trend data
+   */
+  generateCarbonTrendData(userId: string, period: Period, days: number = 30): Array<{
+    date: string
+    offset: number
+    generation: number
+    consumption: number
+    badgesEarned: number
+  }> {
+    const trendData: Array<{
+      date: string
+      offset: number
+      generation: number
+      consumption: number
+      badgesEarned: number
+    }> = []
+    
+    const now = new Date()
+    
+    for (let i = days - 1; i >= 0; i--) {
+      const date = new Date(now)
+      date.setDate(date.getDate() - i)
+      
+      // Generate energy data for this day
+      const dayEnergyData = this.generateHistoricalData(24)
+      
+      // Calculate offset for this day
+      const dailyOffset = this.calculateCarbonOffset(dayEnergyData, userId, 'daily')
+      
+      // Calculate generation and consumption
+      const generation = dayEnergyData
+        .filter(point => point.dataType === 'generation')
+        .reduce((sum, point) => sum + point.value, 0)
+      
+      const consumption = dayEnergyData
+        .filter(point => point.dataType === 'consumption')
+        .reduce((sum, point) => sum + point.value, 0)
+      
+      // Simulate occasional badge earning (5% chance per day)
+      const badgesEarned = Math.random() < 0.05 ? Math.floor(Math.random() * 2) + 1 : 0
+      
+      trendData.push({
+        date: date.toISOString().split('T')[0],
+        offset: dailyOffset.totalOffset,
+        generation,
+        consumption,
+        badgesEarned
+      })
+    }
+    
+    return trendData
+  }
+
+  /**
+   * Simulate carbon offset achievements
+   */
+  simulateCarbonAchievements(userId: string): {
+    totalOffset: number
+    monthlyOffset: number
+    badgesEarned: number
+    daoPoints: number
+    environmentalImpact: {
+      treesPlanted: number
+      carsOffRoad: number
+    }
+  } {
+    // Generate realistic carbon data
+    const monthlyData = this.generateCarbonOffsetData(userId, 'monthly')
+    const yearlyData = this.generateCarbonOffsetData(userId, 'yearly')
+    
+    const totalOffset = yearlyData.offset.totalOffset
+    const monthlyOffset = monthlyData.offset.totalOffset
+    
+    // Get user's current badges and DAO points
+    const userBadges = badgeSystem.getUserBadges(userId)
+    const daoPoints = badgeSystem.getDaoPoints(userId)
+    
+    // Calculate environmental impact
+    const environmentalImpact = carbonCalculator.calculateEnvironmentalImpact(totalOffset)
+    
+    return {
+      totalOffset,
+      monthlyOffset,
+      badgesEarned: userBadges.length,
+      daoPoints,
+      environmentalImpact: {
+        treesPlanted: environmentalImpact.treesPlanted,
+        carsOffRoad: environmentalImpact.carsOffRoad
+      }
+    }
+  }
+
+  /**
+   * Generate carbon leaderboard data
+   */
+  generateCarbonLeaderboard(participantCount: number = 50): Array<{
+    rank: number
+    userId: string
+    username: string
+    totalOffset: number
+    badges: number
+    daoPoints: number
+    avatar?: string
+  }> {
+    const leaderboard: Array<{
+      rank: number
+      userId: string
+      username: string
+      totalOffset: number
+      badges: number
+      daoPoints: number
+      avatar?: string
+    }> = []
+    
+    for (let i = 0; i < participantCount; i++) {
+      // Generate realistic offset data (higher ranks have more offset)
+      const baseOffset = 0.1 + (participantCount - i) * 0.5 + Math.random() * 2
+      const totalOffset = Math.max(0.1, baseOffset)
+      
+      // Calculate badges based on offset (roughly 1 badge per 5 tons)
+      const badges = Math.floor(totalOffset / 5) + Math.floor(Math.random() * 3)
+      
+      // Calculate DAO points (roughly 100 points per badge)
+      const daoPoints = badges * 100 + Math.floor(Math.random() * 500)
+      
+      leaderboard.push({
+        rank: i + 1,
+        userId: `user_${i.toString().padStart(3, '0')}`,
+        username: `User ${i + 1}`,
+        totalOffset: Math.round(totalOffset * 100) / 100,
+        badges,
+        daoPoints,
+        avatar: undefined
+      })
+    }
+    
+    return leaderboard
   }
 }

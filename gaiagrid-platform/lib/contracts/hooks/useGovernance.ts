@@ -21,14 +21,14 @@ const SimpleGovernanceABI = [
 ]
 
 // Vote types enum (matching contract)
-enum VoteType {
+export enum VoteType {
   AGAINST = 0,
   FOR = 1,
   ABSTAIN = 2
 }
 
 // Proposal states enum (matching contract)
-enum ProposalState {
+export enum ProposalState {
   PENDING = 0,
   ACTIVE = 1,
   SUCCEEDED = 2,
@@ -37,7 +37,7 @@ enum ProposalState {
   CANCELLED = 5
 }
 
-interface Proposal {
+export interface Proposal {
   id: string
   proposer: string
   title: string
@@ -86,6 +86,13 @@ export function useGovernance() {
     try {
       const provider = new ethers.BrowserProvider(window.ethereum)
       const contractAddress = getContractAddress(chainId, 'SimpleGovernance')
+      
+      // Check if contract is deployed (not zero address)
+      if (contractAddress === '0x0000000000000000000000000000000000000000') {
+        console.warn('SimpleGovernance contract not deployed on this network')
+        return null
+      }
+      
       return new ethers.Contract(contractAddress, SimpleGovernanceABI, provider)
     } catch (err) {
       console.error('Failed to get contract:', err)
@@ -101,6 +108,13 @@ export function useGovernance() {
       const provider = new ethers.BrowserProvider(window.ethereum)
       const signer = provider.getSigner()
       const contractAddress = getContractAddress(chainId, 'SimpleGovernance')
+      
+      // Check if contract is deployed (not zero address)
+      if (contractAddress === '0x0000000000000000000000000000000000000000') {
+        console.warn('SimpleGovernance contract not deployed on this network')
+        return null
+      }
+      
       return new ethers.Contract(contractAddress, SimpleGovernanceABI, signer)
     } catch (err) {
       console.error('Failed to get contract with signer:', err)
@@ -111,7 +125,80 @@ export function useGovernance() {
   // Load all proposals
   const loadProposals = useCallback(async () => {
     const contract = getContract()
-    if (!contract) return
+    
+    // If contract is not available (demo mode), use mock data
+    if (!contract) {
+      console.log('Demo mode: Loading mock proposals')
+      setIsLoading(true)
+      
+      // Simulate loading delay
+      await new Promise(resolve => setTimeout(resolve, 1000))
+      
+      const mockProposals: Proposal[] = [
+        {
+          id: '0',
+          proposer: '0x742d35Cc6634C0532925a3b8D4C9db96C4b4d8b6',
+          title: 'Increase Solar Energy Incentive Program',
+          description: 'Proposal to increase the GAIA token rewards for solar energy production by 25% to encourage more renewable energy adoption.',
+          targets: ['0x0000000000000000000000000000000000000000'],
+          values: ['0'],
+          signatures: [''],
+          calldatas: ['0x'],
+          startBlock: 18000000,
+          endBlock: 18000000 + 17280, // 3 days
+          forVotes: '15000000000000000000000', // 15 GAIA
+          againstVotes: '2000000000000000000000', // 2 GAIA
+          abstainVotes: '1000000000000000000000', // 1 GAIA
+          executed: false,
+          cancelled: false,
+          createdAt: Date.now() - 86400000, // 1 day ago
+          state: ProposalState.ACTIVE
+        },
+        {
+          id: '1',
+          proposer: '0x8ba1f109551bD432803012645Hac136c',
+          title: 'Implement Carbon Credit Trading',
+          description: 'Add a carbon credit trading system where users can trade verified carbon offsets as NFTs on the platform.',
+          targets: ['0x0000000000000000000000000000000000000000'],
+          values: ['0'],
+          signatures: [''],
+          calldatas: ['0x'],
+          startBlock: 18000000 - 17280,
+          endBlock: 18000000,
+          forVotes: '25000000000000000000000', // 25 GAIA
+          againstVotes: '5000000000000000000000', // 5 GAIA
+          abstainVotes: '2000000000000000000000', // 2 GAIA
+          executed: true,
+          cancelled: false,
+          createdAt: Date.now() - 172800000, // 2 days ago
+          state: ProposalState.EXECUTED
+        },
+        {
+          id: '2',
+          proposer: '0x1234567890123456789012345678901234567890',
+          title: 'Reduce Wind Energy Requirements',
+          description: 'Proposal to lower the minimum wind energy capacity requirements for node registration from 1kW to 500W.',
+          targets: ['0x0000000000000000000000000000000000000000'],
+          values: ['0'],
+          signatures: [''],
+          calldatas: ['0x'],
+          startBlock: 18000000 - 34560,
+          endBlock: 18000000 - 17280,
+          forVotes: '8000000000000000000000', // 8 GAIA
+          againstVotes: '12000000000000000000000', // 12 GAIA
+          abstainVotes: '3000000000000000000000', // 3 GAIA
+          executed: false,
+          cancelled: false,
+          createdAt: Date.now() - 259200000, // 3 days ago
+          state: ProposalState.DEFEATED
+        }
+      ]
+      
+      setProposals(mockProposals)
+      setActiveProposals(mockProposals.filter(p => p.state === ProposalState.ACTIVE))
+      setIsLoading(false)
+      return
+    }
 
     try {
       setIsLoading(true)
@@ -191,7 +278,16 @@ export function useGovernance() {
   // Load stats
   const loadStats = useCallback(async () => {
     const contract = getContract()
-    if (!contract) return
+    if (!contract) {
+      // Set mock stats when contract is not available (demo mode)
+      setStats({
+        totalProposals: 3,
+        activeProposals: 1,
+        executedProposals: 1,
+        totalVotingPower: '5000000000000000000000000' // 50 GAIA (50 * 10^18 wei)
+      })
+      return
+    }
 
     try {
       const [totalProposals, activeProposals, executedProposals, totalVotingPower] = await contract.getStats()
@@ -203,6 +299,13 @@ export function useGovernance() {
       })
     } catch (err) {
       console.error('Failed to load stats:', err)
+      // Set default stats on error
+      setStats({
+        totalProposals: 0,
+        activeProposals: 0,
+        executedProposals: 0,
+        totalVotingPower: '0'
+      })
     }
   }, [getContract])
 
@@ -217,7 +320,28 @@ export function useGovernance() {
     transactionManager: TransactionManager
   ) => {
     const contract = getContractWithSigner()
-    if (!contract || !account) throw new Error('Contract not available')
+    
+    // If contract is not available (demo mode), simulate the transaction
+    if (!contract || !account) {
+      console.log('Demo mode: Simulating proposal creation')
+      
+      // Simulate transaction delay
+      await new Promise(resolve => setTimeout(resolve, 2000 + Math.random() * 1000))
+      
+      // Generate mock transaction hash
+      const mockHash = '0x' + Math.random().toString(16).substr(2, 64)
+      
+      const transaction = transactionManager.addTransaction(
+        mockHash,
+        TransactionType.GOVERNANCE_VOTE,
+        account || '0x0000000000000000000000000000000000000000',
+        account || '0x0000000000000000000000000000000000000000',
+        '0',
+        { action: 'createProposal', title, targets: targets.length, isSimulated: true }
+      )
+
+      return transaction
+    }
 
     try {
       const valuesWei = values.map(v => ethers.parseEther(v))
@@ -245,7 +369,28 @@ export function useGovernance() {
     transactionManager: TransactionManager
   ) => {
     const contract = getContractWithSigner()
-    if (!contract || !account) throw new Error('Contract not available')
+    
+    // If contract is not available (demo mode), simulate the transaction
+    if (!contract || !account) {
+      console.log('Demo mode: Simulating vote casting')
+      
+      // Simulate transaction delay
+      await new Promise(resolve => setTimeout(resolve, 1500 + Math.random() * 1000))
+      
+      // Generate mock transaction hash
+      const mockHash = '0x' + Math.random().toString(16).substr(2, 64)
+      
+      const transaction = transactionManager.addTransaction(
+        mockHash,
+        TransactionType.GOVERNANCE_VOTE,
+        account || '0x0000000000000000000000000000000000000000',
+        account || '0x0000000000000000000000000000000000000000',
+        '0',
+        { action: 'castVote', proposalId, support, isSimulated: true }
+      )
+
+      return transaction
+    }
 
     try {
       const tx = await contract.castVote(proposalId, support)
@@ -271,7 +416,28 @@ export function useGovernance() {
     transactionManager: TransactionManager
   ) => {
     const contract = getContractWithSigner()
-    if (!contract || !account) throw new Error('Contract not available')
+    
+    // If contract is not available (demo mode), simulate the transaction
+    if (!contract || !account) {
+      console.log('Demo mode: Simulating proposal execution')
+      
+      // Simulate transaction delay
+      await new Promise(resolve => setTimeout(resolve, 2000 + Math.random() * 1000))
+      
+      // Generate mock transaction hash
+      const mockHash = '0x' + Math.random().toString(16).substr(2, 64)
+      
+      const transaction = transactionManager.addTransaction(
+        mockHash,
+        TransactionType.GOVERNANCE_VOTE,
+        account || '0x0000000000000000000000000000000000000000',
+        account || '0x0000000000000000000000000000000000000000',
+        '0',
+        { action: 'executeProposal', proposalId, isSimulated: true }
+      )
+
+      return transaction
+    }
 
     try {
       const tx = await contract.execute(proposalId)
@@ -297,7 +463,28 @@ export function useGovernance() {
     transactionManager: TransactionManager
   ) => {
     const contract = getContractWithSigner()
-    if (!contract || !account) throw new Error('Contract not available')
+    
+    // If contract is not available (demo mode), simulate the transaction
+    if (!contract || !account) {
+      console.log('Demo mode: Simulating proposal cancellation')
+      
+      // Simulate transaction delay
+      await new Promise(resolve => setTimeout(resolve, 1500 + Math.random() * 1000))
+      
+      // Generate mock transaction hash
+      const mockHash = '0x' + Math.random().toString(16).substr(2, 64)
+      
+      const transaction = transactionManager.addTransaction(
+        mockHash,
+        TransactionType.GOVERNANCE_VOTE,
+        account || '0x0000000000000000000000000000000000000000',
+        account || '0x0000000000000000000000000000000000000000',
+        '0',
+        { action: 'cancelProposal', proposalId, isSimulated: true }
+      )
+
+      return transaction
+    }
 
     try {
       const tx = await contract.cancel(proposalId)

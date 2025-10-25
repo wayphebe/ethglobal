@@ -20,6 +20,7 @@ import { TransactionManager, TransactionType } from "@/lib/contracts/transaction
 import { DeviceEnergyMonitor } from "@/components/device-energy-monitor"
 import { EnergyOptimizationPanel } from "@/components/energy-optimization-panel"
 import { EarningsTracker } from "@/components/earnings-tracker"
+import { CarbonOffsetCard } from "@/components/carbon-offset-card"
 import { IoTDataSimulator } from "@/lib/iot-data-simulator"
 import { MOCK_DEVICES, UserDevice, IoTDataPoint, OptimizationSuggestion, EnergyUsage } from "@/lib/types/energy"
 
@@ -457,6 +458,11 @@ export default function DashboardPage() {
               </div>
             </CardContent>
           </Card>
+        </div>
+
+        {/* Carbon Offset Card */}
+        <div className="mb-8">
+          <CarbonOffsetCard />
         </div>
 
         {/* Charts */}

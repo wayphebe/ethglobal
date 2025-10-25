@@ -133,7 +133,7 @@ export const tokenConfig = {
     name: 'GaiaGrid Token',
     symbol: 'GAIA',
     decimals: 18,
-    totalSupply: '1000000000000000000000000000', // 1 billion tokens
+    totalSupply: '1000000000000000000000', // 1000 GAIA tokens (1000 * 10^18 wei)
   },
   USDC: {
     name: 'USD Coin',
@@ -152,9 +152,9 @@ export const tokenConfig = {
 export const energyTradingConfig = {
   minEnergyAmount: '1000000000000000000', // 1 kWh in wei
   maxEnergyAmount: '1000000000000000000000', // 1000 kWh in wei
-  minPrice: '1000000000000000', // 0.001 ETH per kWh
-  maxPrice: '1000000000000000000', // 1 ETH per kWh
-  defaultPrice: '100000000000000000', // 0.1 ETH per kWh
+  minPrice: '60000000000000', // 0.00006 ETH per kWh (1 GAIA = 0.00006 ETH)
+  maxPrice: '6000000000000000', // 0.006 ETH per kWh (100 GAIA = 0.006 ETH)
+  defaultPrice: '600000000000000', // 0.0006 ETH per kWh (10 GAIA = 0.0006 ETH)
 } as const
 
 // Node management settings
@@ -168,7 +168,7 @@ export const nodeConfig = {
 
 // Governance settings
 export const governanceConfig = {
-  minProposalThreshold: '1000000000000000000000', // 1000 GAIA tokens
+  minProposalThreshold: '100000000000000000000', // 100 GAIA tokens (10% of total supply)
   votingPeriod: 3 * 24 * 60 * 60, // 3 days in seconds
   executionDelay: 24 * 60 * 60, // 1 day in seconds
   quorumPercentage: 20, // 20% of total supply

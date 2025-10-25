@@ -52,6 +52,13 @@ export function useGAIAToken() {
     try {
       const provider = new ethers.BrowserProvider(window.ethereum)
       const contractAddress = getContractAddress(chainId, 'GAIAToken')
+      
+      // Check if contract is deployed (not zero address)
+      if (contractAddress === '0x0000000000000000000000000000000000000000') {
+        console.warn('GAIAToken contract not deployed on this network')
+        return null
+      }
+      
       return new ethers.Contract(contractAddress, GAIATokenABI, provider)
     } catch (err) {
       console.error('Failed to get contract:', err)
@@ -67,6 +74,13 @@ export function useGAIAToken() {
       const provider = new ethers.BrowserProvider(window.ethereum)
       const signer = provider.getSigner()
       const contractAddress = getContractAddress(chainId, 'GAIAToken')
+      
+      // Check if contract is deployed (not zero address)
+      if (contractAddress === '0x0000000000000000000000000000000000000000') {
+        console.warn('GAIAToken contract not deployed on this network')
+        return null
+      }
+      
       return new ethers.Contract(contractAddress, GAIATokenABI, signer)
     } catch (err) {
       console.error('Failed to get contract with signer:', err)

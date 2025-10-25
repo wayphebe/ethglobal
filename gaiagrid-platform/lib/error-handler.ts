@@ -7,6 +7,7 @@ export function isChromeExtensionError(error: any): boolean {
   return errorMessage.includes('chrome.runtime.sendMessage') || 
          errorMessage.includes('Extension context invalidated') ||
          errorMessage.includes('Extension ID') ||
+         errorMessage.includes('must specify an Extension ID') ||
          errorMessage.includes('NETWORK_ERROR') ||
          errorMessage.includes('network changed') ||
          errorMessage.includes('Cannot read properties of undefined')
